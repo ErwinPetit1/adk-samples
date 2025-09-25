@@ -22,27 +22,45 @@ async def build_parts(query, artifact_service=None, app_name=None, user_id=None,
     parts = [genai_types.Part.from_text(text=query['content'])]
 
     if 'url' in query and query['url']:
-        image_data = await fetch_image(query['url'])
-        image_part = genai_types.Part(
-            inline_data=genai_types.Blob(
-                data=image_data,
-                mime_type="image/jpeg"
-            )
-        )
-
         # Sauver l'image comme artifact si le service est fourni
         if artifact_service and app_name and user_id and session_id:
-            filename = f"query_image_{hash(query['url']) % 10000}.jpg"
+
+
+            print(">>> File uploading on artifact service")
+            filename = "test-erwin.jpg"#f"query_image_{hash(query['url']) % 10000}.jpg"
+            image_data = await fetch_image(query['url'])
+
+            # Créer le Part pour sauver (avec inline_data)
+            temp_artifact = genai_types.Part(
+                inline_data=genai_types.Blob(
+                    data=image_data,
+                    mime_type="image/jpeg"
+                )
+            )
+
+            # Sauver dans l'artifact service
             #await artifact_service.save_artifact(
+            #    filename=filename,
+            #    artifact=temp_artifact,
+            #    session_id=session_id,
             #    app_name=app_name,
             #    user_id=user_id,
-            #    session_id=session_id,
-            #    filename=filename,
-            #    artifact=image_part
             #)
+            #print(">>> File uploaded successfully")
 
-        parts.append(image_part)  # Utilise seulement inline_data
+            parts.append(temp_artifact)  # temp_artifact a inline_data
+        else :
+            print(">>> Using inline_data file")
+            inline_image_data = await fetch_image(query['url'])
+            inline_image_part = genai_types.Part(
+                inline_data=genai_types.Blob(
+                    data=inline_image_data,
+                    mime_type="image/jpeg"
+                )
+            )
+            parts.append(inline_image_part)
 
+    #print(parts)
     return parts
 
 
@@ -53,7 +71,7 @@ async def main():
     artifact_service = InMemoryArtifactService()
 
     app_name="app"
-    session_id="session-erwin-6"
+    session_id="session-erwin-10"
     user_id="user-erwin"
 
     existing_session = await session_service.get_session(
@@ -63,7 +81,7 @@ async def main():
     )
 
     if existing_session:
-        print("We use existing session")
+        print(">>> Use existing session")
     else:
         await session_service.create_session(
             app_name=app_name, user_id=user_id, session_id=session_id
